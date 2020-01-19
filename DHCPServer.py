@@ -13,55 +13,47 @@
 # DHCPRELEASE - Client relinquishes network address and cancels remaining lease.
 # DHCPINFORM - Client request for local config parameters, client has externally configured address.
 
-''' sample stream 
-01
-01
-06
-00
-b2c4382d
-0400
-0000
-00000000
-00000000
-00000000
-00000000
-02004c4f4f5000000000000000000000
-00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-63825363 #Magic Cookie, start of options.
-350101
-3d070102004c4f4f500c0b47756c6673747265616d353c084d53465420352e30370e0103060f1f212b2c2e2f7779f9fcff0000000000000000
+'''my NICs:
+
+Ethernet: 00-4E-01-9A-E5-93
+Loopback: 02-00-4C-4F-4F-50
+Wi-Fi: A0-51-0B-47-B2-83
 '''
 
+
 import socketserver
+import socket
+import DHCP
 
-#Converts a hex value to a decimal number. ie '35' to '53'
-def hexToDec(hex):
-    dec = int(hex, 16)
-    return dec
+my_server = DHCP.DHCP_Server('192.168.6.1')
 
-#Message object to be created when a DHCP message is received.
-class Message:
 
-    #Parse all the fixed length fields in the message, plus the options at the end.
-    def __init__(self, data):
-        self.messageType = data[0:2]
-        self.hwType = data[2:4]
-        self.hwLength = data[4:6]
-        self.hops = data[6:8]
-        self.xid = data[8:16]
-        self.secs = data[16:20]
-        self.flags = data[20:24]
-        self.ciaddr = data[24:32]
-        self.yiaddr = data[32:40]
-        self.siaddr = data[40:48]
-        self.giaddr = data[48:56]
-        self.chaddr = data[56:88]
-        self.sname = data[88:216]
-        self.file = data[216:472]
-        self.magic = data[472:480]
-        self.options = data[480:]
 
-    #parse the variable length options in a message.
-    def parseOptions(self):
+class DHCP_req_handle(socketserver.BaseRequestHandler):
+
+    def handle(self):
+        data = self.request
+
+        #create the message object
+        request = DHCP.Message(data[0].hex())
+
+        #receive the discovery message, create and send an offer. 
+        if request.options['dhcp message type'] == '01':
+            print('DHCP Discover Message from', request.chaddr[:12], 'xid: ', request.xid)
+            responsedata = DHCP.Server_Response(request, my_server).compiled_response
+            response = socket.socket(AF_PACKET, SOCK_DGRAM)
+            response.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            response.sendto(responsedata, ('<broadcast>', 68))
+
+
+        #receive the configuration request, commit config and acknowledge
+        if request.options['dhcp message type'] == '03':
+            print('DHCP Config Request Message from', request.chaddr[:12])
+
+
+if __name__ == '__main__':
+    with socketserver.UDPServer(('', 67), DHCP_req_handle) as server:
+        print('server started')
+        server.serve_forever()
+
 
