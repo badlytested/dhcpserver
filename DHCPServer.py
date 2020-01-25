@@ -43,7 +43,7 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
             print('DHCP Discover Message from', request.chaddr[:12], 'xid: ', request.xid)
             responsedata = DHCP.Server_Response(request, my_server).assemble_response().ljust(300, b'\x00')
             response = self.request[1]
-            print(response)
+
             response.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
             response.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
             response.sendto(responsedata, ('<broadcast>', 68))
@@ -51,7 +51,12 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
         #receive the configuration request, commit config and acknowledge
         if request.options['dhcp message type'] == '03':
             print('DHCP Config Request Message from', request.chaddr[:12])
+            responsedata = DHCP.Server_Response(request, my_server).assemble_response().ljust(300, b'\x00')
+            response = self.request[1]
 
+            response.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            response.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
+            response.sendto(responsedata, ('<broadcast>', 68))
 
 if __name__ == '__main__':
     with socketserver.UDPServer(('', 67), DHCP_req_handle) as server:

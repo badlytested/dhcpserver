@@ -65,15 +65,14 @@ def get_key(dictionary, val):
             return key
 
 dhcp_message_types = {
-    '01': 'DISCOVER',
-    '02': 'OFFER',
-    '03': 'REQUEST',
-    '04': 'DECLINE',
-    '05': 'ACK',
-    '06': 'NAK',
-    '07': 'RELEASE',
-    '08': 'INFORM'
-}
+    'DISCOVER': b'\x01',
+    'OFFER': b'\x02',
+    'REQUEST': b'\x03',
+    'DECLINE': b'\x04',
+    'ACK': b'\x05',
+    'NAK': b'\x06',
+    'RELEASE': b'\x07',
+    'INFORM': b'\x08'}
 
 #read through the variable length option field of a dhcp message and return a dictionary
 #data parameter should be the options field from a message.
@@ -138,7 +137,7 @@ class Server_Response:
         self.secs = 0
         self.flags = 0
         self.ciaddr = request.ciaddr
-        self.yiaddr = pack_ip(server.next_ip())
+        self.yiaddr = self.your_addr(request, server)
         self.siaddr = pack_ip(server.server_addr)
         self.giaddr = pack('l', 0)
         self.chaddr = request.chaddr
@@ -146,7 +145,7 @@ class Server_Response:
         self.file = bytes(128)
         self.magic = request.magic
         self.options = {
-            'dhcp message type': pack('B', self.messageType), #bytes
+            'dhcp message type': self.dhcp_message_type(request), #bytes
             'dhcp server ip': self.siaddr, #bytes
             'lease time': pack('L', 3600), #bytes
             'subnet mask': pack_ip(server.subnet), #bytes
@@ -154,6 +153,29 @@ class Server_Response:
             'domain name': bytes(server.domain, 'ascii'), #bytes
             'dns': pack_ip(server.dns) #bytes
         }
+
+    def your_addr(self, request, server):
+        if 'requested ip' in request.options:
+            print(request.options['requested ip'])
+
+            iparr = []
+            for octet in range(0, 8, 2):
+                iparr.append(str(hex_dec(request.options['requested ip'][octet:octet + 2])))
+
+            return pack_ip('.'.join(iparr))
+        elif request.yiaddr == bytes(4):
+            print(request.yiaddr, bytes(4))
+            return pack_ip(server.next_ip())
+        else:
+            return request.yiaddr
+
+    def dhcp_message_type(self, request):
+        if request.options['dhcp message type'] == dhcp_message_types['DISCOVER'].hex():
+            return dhcp_message_types['OFFER']
+        elif request.options['dhcp message type'] == dhcp_message_types['REQUEST'].hex():
+            return dhcp_message_types['ACK']
+        else:
+            return 'failed'
 
     #convert an option key and value to its proper byte format: [CODE][LENGTH][VALUES]
     def pack_option(self, opt):
@@ -163,7 +185,6 @@ class Server_Response:
         length = pack('B', len(self.options[opt]))
         #the value of the option
         values = self.options[opt]
-        print(code, length, values)
         #assembles the option back into a byte string after initializing an empty bytestring
         res = bytearray() + code + length + values
 
