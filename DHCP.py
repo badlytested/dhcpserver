@@ -1,9 +1,21 @@
+from struct import *
+
 
 #Converts a hex value to a decimal number. ie '35' to '53'
 def hex_dec(hex):
     dec = int(hex, 16)
     return dec
 
+#Takes a typical IP address string and converts into in a byte object with length of 4.
+def pack_ip(ipstr):
+    import struct
+    iparr = [int(each) for each in ipstr.split('.')]
+    return struct.pack('BBBB', iparr[0], iparr[1], iparr[2], iparr[3])
+
+#Takes a byte object length 4 and converts it into a readable IP string.
+def unpack_ip(byteobj):
+    import struct
+    return '.'.join([str(x) for x in struct.unpack('BBBB', byteobj)])
 
 #define options from RFC 2132. Not all will be implemented but some are included for future use/completeness.
 #a code of 255 indicates an end of the options field.
@@ -45,6 +57,12 @@ op_codes = {
         66: 'tftp server name',
         67: 'boot file name',
     }
+
+#return a dictionary key for a given value: NOT WORKING
+def get_key(dictionary, val):
+    for key in dictionary:
+        if val == dictionary[key]:
+            return key
 
 dhcp_message_types = {
     '01': 'DISCOVER',
@@ -90,51 +108,102 @@ class Message:
 
     #Parse all the fixed length fields in the message, plus the options at the end.
     def __init__(self, data):
-        self.messageType = data[0:2]
-        self.hwType = data[2:4]
-        self.hwLength = data[4:6]
-        self.hops = data[6:8]
-        self.xid = data[8:16]
-        self.secs = data[16:20]
-        self.flags = data[20:24]
-        self.ciaddr = data[24:32]
-        self.yiaddr = data[32:40]
-        self.siaddr = data[40:48]
-        self.giaddr = data[48:56]
-        self.chaddr = data[56:88]
-        self.sname = data[88:216]
-        self.file = data[216:472]
-        self.magic = data[472:480]
-        self.options = parse_DHCP_options(data[480:])
+        self.messageType = data[0]
+        self.hwType = data[1]
+        self.hwLength = data[2]
+        self.hops = data[3]
+        self.xid = data[4:8]
+        self.secs = data[8:10]
+        self.flags = data[10:12]
+        self.ciaddr = data[12:16]
+        self.yiaddr = data[16:20]
+        self.siaddr = data[20:24]
+        self.giaddr = data[24:28]
+        self.chaddr = data[28:44]
+        self.sname = data[44:108]
+        self.file = data[108:236]
+        self.magic = data[236:240]
+        self.options = parse_DHCP_options(data[240:].hex())
+
+
 
 class Server_Response:
 
     def __init__(self, request, server):
-        self.messageType = '02'
-        self.hwType = '02'
-        self.hwLength = '06'
-        self.hops = '00'
+        self.messageType = 2
+        self.hwType = 1
+        self.hwLength = 6
+        self.hops = 0
         self.xid = request.xid
-        self.secs = '0000'
-        self.flags = '0000'
+        self.secs = 0
+        self.flags = 0
         self.ciaddr = request.ciaddr
-        self.yiaddr = server.next_ip()
-        self.siaddr = server.server_addr
-        self.giaddr = '00000000'
+        self.yiaddr = pack_ip(server.next_ip())
+        self.siaddr = pack_ip(server.server_addr)
+        self.giaddr = pack('l', 0)
         self.chaddr = request.chaddr
-        self.sname = server.hostname.ljust(128, '0')
-        self.file = '0' * 256
+        self.sname = bytes(64)
+        self.file = bytes(128)
         self.magic = request.magic
         self.options = {
-            'dhcp message type': '02',
-            'dhcp server ip': self.siaddr,
-            'lease time': '4294967295',
-            'subnet mask': '255.255.255.0',
-            'router option': self.siaddr,
-            'domain name': server.domain,
-            'dns': '8.8.8.8'
+            'dhcp message type': pack('B', self.messageType), #bytes
+            'dhcp server ip': self.siaddr, #bytes
+            'lease time': pack('L', 3600), #bytes
+            'subnet mask': pack_ip(server.subnet), #bytes
+            'router option': self.siaddr, #bytes
+            'domain name': bytes(server.domain, 'ascii'), #bytes
+            'dns': pack_ip(server.dns) #bytes
         }
-        self.compiled_response = b'0000'
+
+    #convert an option key and value to its proper byte format: [CODE][LENGTH][VALUES]
+    def pack_option(self, opt):
+        #get the key from the option name
+        code = pack('B', get_key(op_codes, opt))
+        #get the length of the values
+        length = pack('B', len(self.options[opt]))
+        #the value of the option
+        values = self.options[opt]
+        print(code, length, values)
+        #assembles the option back into a byte string after initializing an empty bytestring
+        res = bytearray() + code + length + values
+
+        return res
+
+    #assemble the UDP payload for a DHCP server response
+    def assemble_response(self):
+        res = bytearray()
+
+        res.append(self.messageType)
+        res.append(self.hwType)
+        res.append(self.hwLength)
+        res.append(self.hops)
+
+        for each in self.xid:
+            res.append(each)
+
+        res += self.secs.to_bytes(2, byteorder='big')
+        res += self.flags.to_bytes(2, byteorder='big')
+
+        res += self.ciaddr
+
+        res += self.yiaddr
+        res += self.siaddr
+        res += self.giaddr
+        res += self.chaddr
+        res += self.sname
+        res += self.file
+        res += self.magic
+        
+        for x in self.options:
+            res += self.pack_option(x)
+
+        res += b'\xff'
+
+        return res
+
+
+
+
 
 
 
@@ -144,8 +213,10 @@ class DHCP_Server:
     def __init__(self, addr):
         self.server_addr = addr
         self.cur_addr = addr
+        self.subnet = '255.255.255.0'
         self.hostname = 'quackDHCP'
         self.domain = 'quack'
+        self.dns = '8.8.8.8'
 
     #increments the cur_addr attribute to assign the next available IP in the list to a Server_Response object.
     def next_ip(self):

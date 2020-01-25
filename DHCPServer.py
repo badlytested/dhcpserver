@@ -22,7 +22,7 @@ Wi-Fi: A0-51-0B-47-B2-83
 
 
 import socketserver
-import socket
+from socket import *
 import DHCP
 
 my_server = DHCP.DHCP_Server('192.168.6.1')
@@ -35,16 +35,18 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
         data = self.request
 
         #create the message object
-        request = DHCP.Message(data[0].hex())
+        request = DHCP.Message(data[0])
+        print(data[0])
 
         #receive the discovery message, create and send an offer. 
         if request.options['dhcp message type'] == '01':
             print('DHCP Discover Message from', request.chaddr[:12], 'xid: ', request.xid)
-            responsedata = DHCP.Server_Response(request, my_server).compiled_response
-            response = socket.socket(AF_PACKET, SOCK_DGRAM)
-            response.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            responsedata = DHCP.Server_Response(request, my_server).assemble_response().ljust(300, b'\x00')
+            response = self.request[1]
+            print(response)
+            response.setsockopt(SOL_SOCKET, SO_REUSEADDR, 1)
+            response.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
             response.sendto(responsedata, ('<broadcast>', 68))
-
 
         #receive the configuration request, commit config and acknowledge
         if request.options['dhcp message type'] == '03':
