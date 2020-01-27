@@ -167,9 +167,9 @@ class Server_Response:
         else:
             return pack_ip(server.next_ip())
 
-    #Determine what type of response to give based on client request. There is only the most basic of error handling built in, and this function
-    #does not address all the possible DHCP message types a client would send. This is the bare minimum to assign a client an address.
-    def dhcp_message_type(self, request):
+    #Determine what type of response to give based on client request. There is only the most basic of error handling built in, using 
+    #DHCP NAK messages as a catch all response.
+    def dhcp_message_type(self, request, server):
 
         if request.options['dhcp message type'] == dhcp_message_types['DISCOVER']:
             return dhcp_message_types['OFFER']
@@ -177,8 +177,21 @@ class Server_Response:
         elif request.options['dhcp message type'] == dhcp_message_types['REQUEST']:
             return dhcp_message_types['ACK']
 
+        elif request.options['dhcp message type'] == dhcp_message_types['DECLINE']:
+            print(request.chaddr, 'reported ', server.cur_addr, 'is already in use!')
+            return dhcp_message_types['OFFER']
+
+        elif request.options['dhcp message type'] == dhcp_message_types['RELEASE']:
+            print(request.chaddr, 'released its IP.')
+            return dhcp_message_types['NAK']
+
+        elif request.options['dhcp message type'] == dhcp_message_types['INFORM']:
+            print(request.chaddr, 'sent a DHCP Inform message. Its gonna do its own thing...')
+            return dhcp_message_types['NAK']
+
         else:
-            return 'failed'
+            print(request.chaddr, 'sent a message that was not understood')
+            return dhcp_message_types['NAK']
 
     #This function packs each option defined in the __init__ function into the format [CODE][LENGTH][VALUES] as a bytearray object.
     def pack_option(self, opt):
@@ -190,7 +203,7 @@ class Server_Response:
 
         #the value of the option
         values = self.options[opt]
-        print(code, length, values)
+
         #assembles the option back into a byte string after initializing an empty bytestring
         res = bytearray() + code + length + values
 
@@ -243,6 +256,7 @@ class DHCP_Server:
     #increments the cur_addr attribute to assign the next available IP in the list to a Server_Response object.
     def next_ip(self):
         x = self.cur_addr.split('.')
+        print(x)
         x[3] = str(int(x[3]) + 1)
         self.cur_addr = '.'.join(x)
         return '.'.join(x)

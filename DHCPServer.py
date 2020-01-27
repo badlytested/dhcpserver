@@ -22,11 +22,20 @@ Wi-Fi: A0-51-0B-47-B2-83
 
 import socketserver
 from socket import *
+import threading
 import DHCP
+from sys import argv
 
 #Initiate an instance of a DHCP server at the given address. This address should match the static IP of the NIC you are
 #distributing addresses on.
-my_server = DHCP.DHCP_Server('192.168.6.1')
+
+if (len(argv) > 1 and argv[1] == '') or len(argv) == 1:
+    serv_ip = input('Enter a DHCP Server IP or none for default 192.168.6.200: ')
+    if serv_ip == '':
+        serv_ip = '192.168.6.200'
+    my_server = DHCP.DHCP_Server(serv_ip)
+else:
+    my_server = DHCP.DHCP_Server(argv[1])
 
 #This class is a requirement of the socketserver object. Its method 'handle' defines what happens when the server receives a request.
 class DHCP_req_handle(socketserver.BaseRequestHandler):
@@ -44,9 +53,8 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
         #Check that the code knows how to handle the message properly, then assemble and send the response to the broadcast address.
         if request.options['dhcp message type'] == b'\x01' or request.options['dhcp message type'] == b'\03':
 
-            #creates a new server response object and calls the assemble method to pack the attributes into a byte string. Unknown if the response needs to be
-            #padded as it is with the ljust. That was added while trying to get the responses right but not sure if it makes a difference.
-            responsedata = DHCP.Server_Response(request, my_server).assemble_response().ljust(300, b'\x00')
+            #creates a new server response object and calls the assemble method to pack the attributes into a byte string.
+            responsedata = DHCP.Server_Response(request, my_server).assemble_response()
 
             #self.request[1] is a socket object that was created when the request was recieved. This modifies it to use the broadcast address and sends the
             #response to the DHCP client port. 
@@ -58,11 +66,13 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
             #TODO: A console notification that a response was sent, the type, etc.
             print('sent response') 
 
+class ThreadingUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
+    pass
 
 if __name__ == '__main__':
-    with socketserver.UDPServer(('', 67), DHCP_req_handle) as server:
+    with ThreadingUDPServer(('', 67), DHCP_req_handle) as server:
+        server_thread = threading.Thread(target=server.serve_forever)
+        #server_thread.daemon = True
+        server_thread.start()
         print('server started')
         server.serve_forever()
-
-
-#TODO: See if I can delete the ljust call on the responsedata.
