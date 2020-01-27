@@ -147,7 +147,7 @@ class Server_Response:
         #Define the DHCP options for the response. These are stored as byte objects here because they have different types, in order to make
         #it easier when packing them up into the payload.
         self.options = {
-            'dhcp message type': self.dhcp_message_type(request),
+            'dhcp message type': self.dhcp_message_type(request, server),
             'dhcp server ip': self.siaddr,
             'lease time': pack('L', 3600),
             'subnet mask': pack_ip(server.subnet),
@@ -178,19 +178,19 @@ class Server_Response:
             return dhcp_message_types['ACK']
 
         elif request.options['dhcp message type'] == dhcp_message_types['DECLINE']:
-            print(request.chaddr, 'reported ', server.cur_addr, 'is already in use!')
+            #print(request.chaddr, 'reported ', server.cur_addr, 'is already in use!')
             return dhcp_message_types['OFFER']
 
         elif request.options['dhcp message type'] == dhcp_message_types['RELEASE']:
-            print(request.chaddr, 'released its IP.')
+            #print(request.chaddr, 'released its IP.')
             return dhcp_message_types['NAK']
 
         elif request.options['dhcp message type'] == dhcp_message_types['INFORM']:
-            print(request.chaddr, 'sent a DHCP Inform message. Its gonna do its own thing...')
+            #print(request.chaddr, 'sent a DHCP Inform message. Its gonna do its own thing...')
             return dhcp_message_types['NAK']
 
         else:
-            print(request.chaddr, 'sent a message that was not understood')
+            #print(request.chaddr, 'sent a message that was not understood')
             return dhcp_message_types['NAK']
 
     #This function packs each option defined in the __init__ function into the format [CODE][LENGTH][VALUES] as a bytearray object.
@@ -256,7 +256,6 @@ class DHCP_Server:
     #increments the cur_addr attribute to assign the next available IP in the list to a Server_Response object.
     def next_ip(self):
         x = self.cur_addr.split('.')
-        print(x)
         x[3] = str(int(x[3]) + 1)
         self.cur_addr = '.'.join(x)
         return '.'.join(x)

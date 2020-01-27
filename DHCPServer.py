@@ -54,7 +54,8 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
         if request.options['dhcp message type'] == b'\x01' or request.options['dhcp message type'] == b'\03':
 
             #creates a new server response object and calls the assemble method to pack the attributes into a byte string.
-            responsedata = DHCP.Server_Response(request, my_server).assemble_response()
+            server_response = DHCP.Server_Response(request, my_server)
+            responsedata = server_response.assemble_response()
 
             #self.request[1] is a socket object that was created when the request was recieved. This modifies it to use the broadcast address and sends the
             #response to the DHCP client port. 
@@ -63,8 +64,8 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
             response.setsockopt(SOL_SOCKET, SO_BROADCAST, 1)
             response.sendto(responsedata, ('<broadcast>', 68))
 
-            #TODO: A console notification that a response was sent, the type, etc.
-            print('sent response') 
+            if server_response.options['dhcp message type'] == b'\x05':
+                print(server_response.chaddr, '-', server_response.yiaddr)
 
 class ThreadingUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
     pass
@@ -74,5 +75,16 @@ if __name__ == '__main__':
         server_thread = threading.Thread(target=server.serve_forever)
         #server_thread.daemon = True
         server_thread.start()
-        print('server started')
-        server.serve_forever()
+        print('Server started. Press Ctrl + C to end.')
+        try:
+            server.serve_forever()
+        except KeyboardInterrupt:
+            print('Shutting down DHCP Server')
+            server.shutdown()
+
+            if len(argv) > 1:
+                print("To reset the ethernet adapter to DHCP, select N when prompted to terminate batch job.")
+                input("Press Enter to continue...")
+
+
+
