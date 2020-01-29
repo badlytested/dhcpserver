@@ -2,9 +2,9 @@ from struct import *
 
 #Takes a typical IP address string and converts into in a byte object with length of 4.
 def pack_ip(ipstr):
-    import struct
     iparr = [int(each) for each in ipstr.split('.')]
-    return struct.pack('BBBB', iparr[0], iparr[1], iparr[2], iparr[3])
+    return pack('BBBB', iparr[0], iparr[1], iparr[2], iparr[3])
+
 
 #return a dictionary key for a given value.
 def get_key(dictionary, val):
@@ -178,19 +178,19 @@ class Server_Response:
             return dhcp_message_types['ACK']
 
         elif request.options['dhcp message type'] == dhcp_message_types['DECLINE']:
-            #print(request.chaddr, 'reported ', server.cur_addr, 'is already in use!')
+            print(request.chaddr, 'reported ', server.cur_addr, 'is already in use!')
             return dhcp_message_types['OFFER']
 
         elif request.options['dhcp message type'] == dhcp_message_types['RELEASE']:
-            #print(request.chaddr, 'released its IP.')
+            print(request.chaddr, 'released its IP.')
             return dhcp_message_types['NAK']
 
         elif request.options['dhcp message type'] == dhcp_message_types['INFORM']:
-            #print(request.chaddr, 'sent a DHCP Inform message. Its gonna do its own thing...')
+            print(request.chaddr, 'sent a DHCP Inform message. Its gonna do its own thing...')
             return dhcp_message_types['NAK']
 
         else:
-            #print(request.chaddr, 'sent a message that was not understood')
+            print(request.chaddr, 'sent a message that was not understood')
             return dhcp_message_types['NAK']
 
     #This function packs each option defined in the __init__ function into the format [CODE][LENGTH][VALUES] as a bytearray object.

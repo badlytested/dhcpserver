@@ -14,21 +14,19 @@ How to Use:
   
 -If you don't have Python installed, install the latest version of Python from www.python.org/downloads.
 
+-Run the DHCPServer.py script, or alternatively, run the dhcp.bat file as an administrator.
+
+<!-- 
+This apparently does not work the same on all computers.
+
 -Run dhcp.bat as administrator.
 
-This will provide nice prompts to guide you through, and will also set your ethernet adapter to a static IP for you. When you exit the server, it will set the ethernet adapter back to DHCP. If your ethernet adapter is not named "Ethernet", and you can check this by running ipconfig in the command prompt, you will need to open the .bat file in a text editor and change the name.
+This will provide nice prompts to guide you through, and will also set your ethernet adapter to a static IP for you. When you exit the server, it will set the ethernet adapter back to DHCP. If your ethernet adapter is not named "Ethernet", and you can check this by running ipconfig in the command prompt, you will need to open the .bat file in a text editor and change the name. -->
 
 
 Required components:
 Python 3
 Windows
-
-
-Testing Environment:
-Tested with Windows 10 and Python 3.7.4, and has been tested with the following client devices:
-
-Savant SSC-0012 
-
 
 Origin/Initial Intent of Project:
 

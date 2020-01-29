@@ -47,6 +47,8 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
         #heavily in the behavior of the server. self.request is a tuple of the recieved data and the client socket.
         request = DHCP.Message(self.request[0])
 
+
+
         #When a request is recieved, show the DHCP message type, the MAC its from, and the transaction ID. For info/debug purposes.
         print('DHCP ', DHCP.get_key(DHCP.dhcp_message_types, request.options['dhcp message type']), ' from: ', request.chaddr[:6].hex(), ', xid: ', request.xid.hex())
 
@@ -65,7 +67,7 @@ class DHCP_req_handle(socketserver.BaseRequestHandler):
             response.sendto(responsedata, ('<broadcast>', 68))
 
             if server_response.options['dhcp message type'] == b'\x05':
-                print(server_response.chaddr, '-', server_response.yiaddr)
+                print(server_response.chaddr.hex()[:12], '-', '.'.join([str(x) for x in server_response.yiaddr]))
 
 class ThreadingUDPServer(socketserver.ThreadingMixIn, socketserver.UDPServer):
     pass
