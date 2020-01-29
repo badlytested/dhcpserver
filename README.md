@@ -14,7 +14,9 @@ How to Use:
   
 -If you don't have Python installed, install the latest version of Python from www.python.org/downloads.
 
--Run the DHCPServer.py script, or alternatively, run the dhcp.bat file as an administrator.
+-Set your ethernet adapter to a static IP. Use that same static IP when prompted by the script.
+
+-Run the DHCPServer.py script, or alternatively, run the dhcp.bat file as an administrator. The batch file should set a static IP for you and reset your NIC to DHCP when complete, but its not working the same on all PCs.
 
 <!-- 
 This apparently does not work the same on all computers.
